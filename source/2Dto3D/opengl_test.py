@@ -7,7 +7,7 @@ from OpenGL.arrays import vbo
 import OpenGL
 import numpy as np
 import glm
-
+#
 
 url = 'd://Dress//Data//base.obj'
 vertices = []
@@ -64,6 +64,12 @@ def load_obj():
                         [ 2, 1, 0 ],],'f')    
     return vertices,normals,textcoords,faces
 
+# 提取由区域分割得到的人的点阵列表数据
+def set_vertices():
+    url = 'd://Dress//Data//vertex_output.npy'
+    global vertices
+    vertices = np.load(url)
+    
 
 # 初始化
 def init():
@@ -76,10 +82,11 @@ def init():
     glClearColor(0.0, 0.0, 0.0, 0.0)
     glColor4f(1.0, 1.0, 0.0, 0.0)
     # 准备顶点
-    load_obj()
+    #load_obj()
+    set_vertices()
     ## 准备着色器
-    View = glm.translate(glm.mat4(), glm.vec3(-0.5, 0.0, 0.0))
-    Model = glm.scale(glm.mat4(), glm.vec3(0.5, 0.5, 0.5))
+    View = glm.translate(glm.mat4(), glm.vec3(-0.5, -1.2, 0.0))
+    Model = glm.scale(glm.mat4(), glm.vec3(0.08, 0.08, 0.08))
     Project = glm.mat4()
     # 建立着色器的源代码
     # 编译着色器得到着色器对像
@@ -134,7 +141,7 @@ def display():
         #glDrawArrays(GL_TRIANGLES, 0, 9)
         #glDrawArrays(GL_LINE_LOOP, 0, 9)
         #glDrawArrays(GL_LINES, 0, 9)
-        glDrawArrays(GL_POINTS, 0, 9)
+        glDrawArrays(GL_POINTS, 0, 129)
     finally:
         glDisableClientState(GL_VERTEX_ARRAY)
         my_vbo.unbind()

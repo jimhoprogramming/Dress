@@ -10,12 +10,29 @@ import numpy as np
 def open_img():
     url = 'd://VOCdevkit//VOC2012//SegmentationClass//2007_006076.png'
     img = image.imread(url)
+    plt.ioff()
+    plt.imshow(img.asnumpy())
+    plt.colorbar()
+    plt.show()
+    #plt.close()
     return img
 
 # 过滤有效区域
 def filter_usage(img):
     data_ndarray = voc_label_indices(img)  
     return data_ndarray
+
+# 调整分辨率减少生成的点数量
+def adjust_dpi(img, per):
+    h,w,c = img.shape
+    new_w, new_h = int(w*per), int(h*per)
+    img = image.imresize(img, w = new_w, h = new_h, interp = 1)
+    print(img.shape)
+    plt.ioff()
+    plt.imshow(img.asnumpy())
+    plt.colorbar()
+    plt.show()
+    return img
 
 
 # 本函数已保存在d2lzh包中方便以后使用
@@ -48,6 +65,7 @@ def create_3d_vertex(nd_array):
     print(nd_array)
     print('nd_array min = {} ,max = {}'.format(nd.min(nd_array),nd.max(nd_array)))
     # 可视化
+    plt.ioff()
     plt.imshow(nd_array.asnumpy())
     plt.colorbar()
     plt.show()
@@ -59,10 +77,20 @@ def create_3d_vertex(nd_array):
         #print('point {} position is {}'.format(i,rel[i]))
     return rel
                 
-##
-if __name__ == '__main__':
+
+def do_main():
+    url = 'd://Dress//Data//vertex_output.npy'
     img = open_img()
+    img = adjust_dpi(img, per = 0.05)
     nd_array = filter_usage(img)
     vertex = create_3d_vertex(nd_array)
     print('vertex_list len = {}'.format(len(vertex)))
+    print(vertex)
+    np.save(url, np.array(vertex,'f'))
+    return vertex
+
+##
+
+if __name__ == '__main__':
+    do_main()
     
