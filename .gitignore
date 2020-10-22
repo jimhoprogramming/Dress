@@ -1,2 +1,3 @@
-source/photo_extract_dress/_pycache_/
-source/2Dto3D/_pycache_/
+source/photo_extract_dress/__pycache__/
+source/2Dto3D/__pycache__
+source/Data/vertex_output.npy
