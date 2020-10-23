@@ -137,22 +137,104 @@ class Encoder_Net(nn.HybridBlock):
         feature_f = self.dgaspp_net(feature_f)
         # concat 2,3
         feature_g = nd.concat(feature_f, feature_d, dim = 1)
-        feature_g = self.conv2d_4(feature_g)
+        #feature_g = self.conv2d_4(feature_g)
         return feature_h, feature_g
     
+# 初级反卷积网络
+def primery_decoder():
+    net = nn.HybridSequential()
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    return net
 
+
+# 特征还原器
+def return_feature():
+    net = nn.HybridSequential()
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    return net
+
+
+
+class Decoder_Net(nn.HybridBlock):
+    def __init__(self, **kwargs):
+        super(Decoder_Net, self).__init__(**kwargs)
+        # setup main net    
+        self.primery_decoder = primery_decoder()
+        self.return_feature = return_feature()
+    def forward(self, x1, x2):
+        x2 = self.primery_decoder(x2)
+        middle_feature = nd.concat(x1, x2, dim = 1)
+        y_hat = self.return_feature(middle_feature)
+        return y_hat
+
+
+class model(nn.HybridBlock):
+    def __init__(self, **kwargs):
+        super(model, self).__init__(**kwargs)
+        self.Encoder_Net = Encoder_Net()
+        self.Decoder_Net = Decoder_Net()
+    def forward(self, x):
+        x1,x2 = self.Encoder_Net(x)
+        y_hat = self.Decoder_Net(x1,x2)
+        return y_hat
     
 if __name__== '__main__':
     ## 生成输入数据
-##    x = nd.random.uniform(shape=(8,3,64,64))
+##    x = nd.random.uniform(shape=(8,3,512,512))
 ##    print(x.shape)
+##    x1 = nd.random.uniform(shape=(8,3,128,128))
+##    x2 = nd.random.uniform(shape=(8,3,32,32))
+##    print(x1.shape)
+##    print(x2.shape)
+    
     t,v = create_dataloader()
     
     ## 代入神经网络生成y_hat
 
     #net = dense_atrous_conv_net()
     #net = dgaspp_net()
-    net = Encoder_Net()
+    #net = Encoder_Net()
+    #net = Decoder_Net()
+    net = model()
     net.initialize(init=init.Xavier())
 
     # 看网络结构
@@ -162,14 +244,16 @@ if __name__== '__main__':
     for x,y in t:
         # 输入并转换通道
         print('input x shape = {}'.format(x.shape))
-        y_hat_1, y_hat_2 = net(nd.transpose(x,axes = (0,3,1,2)))
-        print('output y_hat_1 shape = {}'.format(y_hat_1.shape))
-        print('output y_hat_2 shape = {}'.format(y_hat_2.shape))
+        y_hat = net(nd.transpose(x,axes = (0,3,1,2)))
+##        y_hat_1, y_hat_2 = net(nd.transpose(x,axes = (0,3,1,2)))
+##        print('output y_hat_1 shape = {}'.format(y_hat_1.shape))
+##        print('output y_hat_2 shape = {}'.format(y_hat_2.shape))
         # 通道转换
-        y_hat_1 = nd.transpose(y_hat_1, axes = (0,2,3,1))
-        y_hat_2 = nd.transpose(y_hat_2, axes = (0,2,3,1))
+        y_hat = nd.transpose(y_hat, axes = (0,2,3,1))
+##        y_hat_1 = nd.transpose(y_hat_1, axes = (0,2,3,1))
+##        y_hat_2 = nd.transpose(y_hat_2, axes = (0,2,3,1))
         # 显示热量图
-        d2l.show_images_ndarray([x,y,y_hat_2],3,8,2)
+        d2l.show_images_ndarray([x,y,y_hat],3,8,2)
         break
-
+##    print(net(x).shape)
 
