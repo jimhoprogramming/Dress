@@ -51,7 +51,7 @@ if __name__ == '__main__':
     #string = 'text_dlg_avoid_msg'
     #string = '0x7f0d00d4'
     #string = '0x7f0d0062'
-    string = 'unwrap'
+    string = 'shrinkwrap'
     loop_dir(directory = url, find_string = string)
     #string = '@dimen/about_us_app_version_code_size'
     #url = 'd://tools//aznxzs//lib//apktool//Turbo_VPN//res//layout//activity_about.xml'

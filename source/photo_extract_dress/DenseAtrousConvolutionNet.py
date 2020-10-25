@@ -206,7 +206,6 @@ class Decoder_Net(nn.HybridBlock):
         y_hat = self.return_feature(middle_feature)
         return y_hat
 
-
 class model(nn.HybridBlock):
     def __init__(self, **kwargs):
         super(model, self).__init__(**kwargs)
@@ -216,7 +215,7 @@ class model(nn.HybridBlock):
         x1,x2 = self.Encoder_Net(x)
         y_hat = self.Decoder_Net(x1,x2)
         return y_hat
-    
+
 if __name__== '__main__':
     ## 生成输入数据
 ##    x = nd.random.uniform(shape=(8,3,512,512))
