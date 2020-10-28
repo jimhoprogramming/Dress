@@ -64,14 +64,13 @@ class P2012Voc_DataSet(gluon.data.Dataset):
                     break
             else:
                 idx = random.randint(0,len(self.image_list))
-        return self.__normalize_image(x),y
+        return self.__normalize_image(x), y.astype('float32')
     def __normalize_image(self, img):
         img = (img.astype('float32') / 255.0 - self.rgb_mean) / self.rgb_std
         img = img.clip(0.0,1.0)
         return img
 
-def create_dataloader():
-    batch_size = 8
+def create_dataloader(batch_size = 8):
     train_dataset = P2012Voc_DataSet(is_train = True)
     train_dataloader = gluon.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_dataset = P2012Voc_DataSet(is_train = False)
@@ -84,7 +83,11 @@ if __name__ == '__main__':
     t,v = create_dataloader()
     for x,y in t:
         print(x.shape)
+        print(x.dtype)
+        print('input min:{},max:{}'.format(x.min().asscalar(), x.max().asscalar()))
         print(y.shape)
+        print(y.dtype)
+        print('label min:{},max:{}'.format(y.min().asscalar(), y.max().asscalar()))
         d2l.show_images_ndarray([x,y],2,8,2)
         
         

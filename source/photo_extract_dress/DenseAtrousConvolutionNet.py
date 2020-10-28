@@ -123,7 +123,7 @@ class Encoder_Net(nn.HybridBlock):
         self.conv2d_1 = nn.Conv2D(channels = 3, kernel_size = 1, strides = 1)
         self.conv2d_2 = nn.Conv2D(channels = 3, kernel_size = 3, strides = 1, padding = 1)
         self.conv2d_3 = nn.Conv2D(channels = 3, kernel_size = 3, strides = 2, padding = 0)
-        self.conv2d_4 = nn.Conv2D(channels = 3, kernel_size = 1, strides = 1)
+        #self.conv2d_4 = nn.Conv2D(channels = 3, kernel_size = 1, strides = 1)
     def forward(self, x):
         feature_b = self.dense_atrous_conv_net(x)
         # load 1
@@ -211,10 +211,12 @@ class model(nn.HybridBlock):
         super(model, self).__init__(**kwargs)
         self.Encoder_Net = Encoder_Net()
         self.Decoder_Net = Decoder_Net()
+        self.flatten = nn.Flatten()
     def forward(self, x):
         x1,x2 = self.Encoder_Net(x)
-        y_hat = self.Decoder_Net(x1,x2)
-        return y_hat
+        image = self.Decoder_Net(x1,x2)
+        y_hat = self.flatten(image)
+        return y_hat,image
 
 if __name__== '__main__':
     ## 生成输入数据
@@ -243,12 +245,12 @@ if __name__== '__main__':
     for x,y in t:
         # 输入并转换通道
         print('input x shape = {}'.format(x.shape))
-        y_hat = net(nd.transpose(x,axes = (0,3,1,2)))
+        y_hat, image = net(nd.transpose(x,axes = (0,3,1,2)))
 ##        y_hat_1, y_hat_2 = net(nd.transpose(x,axes = (0,3,1,2)))
 ##        print('output y_hat_1 shape = {}'.format(y_hat_1.shape))
 ##        print('output y_hat_2 shape = {}'.format(y_hat_2.shape))
         # 通道转换
-        y_hat = nd.transpose(y_hat, axes = (0,2,3,1))
+        y_hat = nd.transpose(image, axes = (0,2,3,1))
 ##        y_hat_1 = nd.transpose(y_hat_1, axes = (0,2,3,1))
 ##        y_hat_2 = nd.transpose(y_hat_2, axes = (0,2,3,1))
         # 显示热量图

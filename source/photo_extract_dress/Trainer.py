@@ -1,72 +1,29 @@
+import os, numpy as np, time
 from mxnet.gluon import nn, loss as gloss, Trainer
 from mxnet import autograd
 from mxnet import initializer as init
 from mxnet import nd
 #
-
-
+from DenseAtrousConvolutionNet import model 
+from GetData import create_dataloader
 
 class Train(object):
     def __init__(self):
         object.__init__(self)
-        self.pretrain_model = None
-        self.model = None
+        self.model = model()
         self.loss = None
         self.trainer = None
-        self.full_model()
-        self.fine_tune()
-        
+        self.learning_rate = 0.03
+        self.weight_url = 'd:\\Dress\\Data\\weights.params'
+        self.logdir_url = 'd:\\Dress\\log'
+        self.sw = None
 
-        
     def set_weight_name(self, name):
         self.weight_url = self.weight_url.replace('fill_it', name)
         
     def load_weights(self, weight_url):
         if os.path.exists(self.weight_url):
             self.model.load_parameters(self.weight_url)        
-        
-    
-    def full_model(self):
-
-        # 只下权重。没有的话会自动下载zip文件到%mxnethome%/model/目录里，而模型在本地用代码构建
-        self.pretrain_model = vision.mobilenet_v2_1_0(pretrained = False)
-        # 显示模型全部形态
-        #print(self.pretrain_model)
-        
-    def fine_tune(self):
-        '''
-           参考：https://zhuanlan.zhihu.com/p/42441251
-        '''
-        # 截取模型部分层训练
-        pre_layers = self.pretrain_model.features[:24]
-
-        # 自补充完最后收尾层
-        append_layers = [
-                         #nn.BatchNorm(), \
-                         #nn.Dropout(rate = 0.2), \
-                         #nn.Activation('relu'), \
-                         #nn.GlobalAvgPool2D(), \
-                         #nn.Flatten(), \
-                         nn.Dense(units = self.output_dim), \
-                         nn.Flatten() \
-                         ]
-        # 建一个新的net
-        self.model = nn.HybridSequential()
-
-        # 新旧层建构
-        for layer in pre_layers:
-            '''
-            # 加入dropout层
-            #print(type(layer))
-            if isinstance(layer, nn.basic_layers.HybridSequential):
-                for child_layer in layer:
-                    if isinstance(child_layer, vision.resnet.BottleneckV2):
-                        print(child_layer)
-            '''
-            self.model.add(layer)
-        #    
-        for layer in append_layers:
-            self.model.add(layer)
 
     def init_model(self):
         # 新模型初始化
@@ -75,7 +32,7 @@ class Train(object):
         else:
             #self.model.collect_params("conv*|dense*").initialize(init.Xavier())
             self.model.initialize(init=init.Xavier())
-        self.model.hybridize()
+        # self.model.hybridize()
 
         # 显示模型
         #print(u'after fine tune model:')
@@ -83,54 +40,68 @@ class Train(object):
 
     def model_compile(self):
         # 编译模型
-        self.loss = gloss.SoftmaxCrossEntropyLoss()
-        self.trainer = Trainer(self.model.collect_params(), optimizer = 'RMSProp')
+        self.loss = gloss.L2Loss()
+        self.trainer = Trainer(self.model.collect_params(), optimizer = 'adam')
         self.trainer.set_learning_rate = self.learning_rate
 
     def predict(self, x):
-        x = x[:,:,:3]
-        x = nd.array(x)
         x = nd.expand_dims(x, axis = 0)
-        data_transforms = create_transformer()
-        x = data_transforms(x)
+        x = nd.transpose(x, axes = (0,3,1,2))
         #print(u'单个样本预测输入的形状：{}'.format(x.shape))
         # 初始化及编译模型准备训练
         self.init_model()
         self.model_compile()
-        self.setup_debug()
+        #self.setup_debug()
         # 进入预测
         with autograd.predict_mode():
             #print(u'训练模式：{}'.format(autograd.is_training()))
             output = self.model(x)
-        return output.argmax(axis=1)
-        
+        return output
 
-    def fit(self, dataset, epochs = config.EPOCHS, verbose = 1, validation_split = config.VAL_PERCEND, batch_size = config.BATCH_SIZE):
+    def acc(self, output, label):
+        # output: (batch, num_output) float32 ndarray
+        # label: (batch, ) int32 ndarray
+        return (output == label.flatten()).mean()    
+
+    def fit(self, dataset_train, dataset_val, epochs = 10, verbose = 1, validation_split = 0.3, batch_size = 2):
         # 初始化及编译模型准备训练
         self.init_model()
         self.model_compile()
         #self.setup_debug()
         # 进入训练
-        train_data, valid_data = dataset
+        train_data, valid_data = dataset_train, dataset_val
         global_step = 0
-        for epoch in np.arange(epochs):
+        for epoch in nd.arange(epochs):
             train_loss, train_acc, valid_acc = 0., 0., 0.
             tic = time.time()
             for data, label in train_data:
+                data = nd.transpose(data,axes = (0,3,1,2))
+                label = nd.transpose(label,axes = (0,3,1,2))
                 # show img as y
                 #show_data(data, label)
                 # forward + backward
                 with autograd.record():
+                    #
                     print(u'训练模式：{}'.format(autograd.is_training()))
-                    print(u'数据形态{}'.format(data.shape))
-                    output = self.model(data)
-                    loss = self.loss(output, label)
+                    print(u'输入数据形态{}, type = {}'.format(data.shape, type(data)))
+                    print('input max:{},min:{}'.format(data.max(),data.min()))
+                    #
+                    output,_ = self.model(data)
+                    print(u'输出y_hat数据形态{}, type = {}'.format(output.shape, output.dtype))
+                    print(u'输出label数据形态{}, type = {}'.format(label.shape, label.dtype))
+                    print('output max:{},min:{}'.format(output.max().asscalar(), output.min().asscalar()))
+                    print('label max:{},min:{}'.format(label.max().asscalar(), label.min().asscalar()))
+                    #
+                    loss = self.loss(output, label.flatten())
+                    print('loss shape : {}'.format(loss.shape))
+                    #
                     loss.backward()
                 # update parameters
                 self.trainer.step(batch_size)
                 # calculate training metrics
-                train_loss += loss.mean().asscalar()
-                train_acc += acc(output, label)
+                train_loss += loss
+                print('train_loss shape:{}'.format(train_loss.shape))
+                train_acc += self.acc(output, label)
                 '''
                 # check_bug
                 print(u'train set check:')
@@ -148,11 +119,13 @@ class Train(object):
 
             # calculate validation accuracy
             for data, label in valid_data:
+                data = nd.transpose(data,axes = (0,3,1,2))
+                label = nd.transpose(label,axes = (0,3,1,2))
                 with autograd.predict_mode():
                     print(u'训练模式：{}'.format(autograd.is_training()))
-                    output = self.model(data)   
+                    output,_ = self.model(data)   
                 #
-                valid_acc += acc(output, label)
+                valid_acc += self.acc(output, label)
                 #print(u'val set check:')
                 #self.check_bug(label, output)
                 
@@ -213,3 +186,8 @@ class Train(object):
 ##        # logging the gradients of parameters for checking convergence
 ##        for i, name in enumerate(param_names):
 ##            self.sw.add_histogram(tag = name, values = grads[i], global_step = global_step, bins = 1000)
+
+if __name__=='__main__':
+    t,v = create_dataloader(2)
+    Trainer_Obj = Train()
+    Trainer_Obj.fit(t,v)
