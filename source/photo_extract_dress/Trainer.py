@@ -14,8 +14,8 @@ class Train(object):
         self.loss = None
         self.trainer = None
         self.learning_rate = 0.03
-        self.weight_url = 'd:\\Dress\\Data\\weights.params'
-        self.logdir_url = 'd:\\Dress\\log'
+        self.weight_url = '\home\\jim\\Dress\\Data\\weights.params'
+        self.logdir_url = '\home\\jim\\Dress\\log'
         self.sw = None
 
     def set_weight_name(self, name):
@@ -61,9 +61,9 @@ class Train(object):
     def acc(self, output, label):
         # output: (batch, num_output) float32 ndarray
         # label: (batch, ) int32 ndarray
-        return (output == label.flatten()).mean()    
+        return (output == label.flatten()).mean().asscalar()    
 
-    def fit(self, dataset_train, dataset_val, epochs = 10, verbose = 1, validation_split = 0.3, batch_size = 2):
+    def fit(self, dataset_train, dataset_val, epochs = 2, verbose = 1, validation_split = 0.3, batch_size = 32):
         # 初始化及编译模型准备训练
         self.init_model()
         self.model_compile()
@@ -74,6 +74,7 @@ class Train(object):
         for epoch in nd.arange(epochs):
             train_loss, train_acc, valid_acc = 0., 0., 0.
             tic = time.time()
+            train_step = 0
             for data, label in train_data:
                 data = nd.transpose(data,axes = (0,3,1,2))
                 label = nd.transpose(label,axes = (0,3,1,2))
@@ -83,7 +84,7 @@ class Train(object):
                 with autograd.record():
                     #
                     print(u'训练模式：{}'.format(autograd.is_training()))
-                    print(u'输入数据形态{}, type = {}'.format(data.shape, type(data)))
+                    print(u'输入数据形态{}, type = {}'.format(data.shape, data.dtype))
                     print('input max:{},min:{}'.format(data.max(),data.min()))
                     #
                     output,_ = self.model(data)
@@ -94,14 +95,17 @@ class Train(object):
                     #
                     loss = self.loss(output, label.flatten())
                     print('loss shape : {}'.format(loss.shape))
+                    print('loss value: {}'.format(loss))
                     #
                     loss.backward()
                 # update parameters
                 self.trainer.step(batch_size)
                 # calculate training metrics
-                train_loss += loss
-                print('train_loss shape:{}'.format(train_loss.shape))
+                train_loss += np.mean(loss.asnumpy())
+                #print('train_loss shape:{}'.format(train_loss.shape))
+                print('train_loss:{}'.format(train_loss))
                 train_acc += self.acc(output, label)
+                print('train_acc:{}'.format(train_acc))
                 '''
                 # check_bug
                 print(u'train set check:')
@@ -116,8 +120,10 @@ class Train(object):
                               train_data = data)
                 '''
                 global_step += 1
+                train_step += 1
 
             # calculate validation accuracy
+            val_step = 0
             for data, label in valid_data:
                 data = nd.transpose(data,axes = (0,3,1,2))
                 label = nd.transpose(label,axes = (0,3,1,2))
@@ -128,11 +134,12 @@ class Train(object):
                 valid_acc += self.acc(output, label)
                 #print(u'val set check:')
                 #self.check_bug(label, output)
+                val_step += 1
                 
             # display rel
             print("Epoch {}: loss {}, train acc {}, test acc {}, using {} sec" .format(
-                    epoch, train_loss/len(train_data), train_acc/len(train_data),
-                    valid_acc/len(valid_data), time.time()-tic))
+                    epoch, train_loss/train_step, train_acc/train_step,
+                    valid_acc/val_step, time.time()-tic))
 
             # save weights
             self.model.save_parameters(self.weight_url)
@@ -188,6 +195,6 @@ class Train(object):
 ##            self.sw.add_histogram(tag = name, values = grads[i], global_step = global_step, bins = 1000)
 
 if __name__=='__main__':
-    t,v = create_dataloader(2)
+    t,v = create_dataloader(32)
     Trainer_Obj = Train()
     Trainer_Obj.fit(t,v)

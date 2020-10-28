@@ -7,10 +7,10 @@ import random
 class P2012Voc_DataSet(gluon.data.Dataset):
     def __init__(self, is_train = True):
         super(P2012Voc_DataSet, self).__init__()
-        url_file_train = 'd://VOCdevkit//VOC2012//ImageSets//Segmentation//train.txt'
-        url_file_val = 'd://VOCdevkit//VOC2012//ImageSets//Segmentation//trainval.txt'
-        self.pre_x_path = 'd://VOCdevkit//VOC2012//JPEGImages'
-        self.pre_y_path = 'd://VOCdevkit//VOC2012//SegmentationClass'
+        url_file_train = '/home//jim//Data//VOCdevkit//VOC2012//ImageSets//Segmentation//train.txt'
+        url_file_val = '/home//jim//Data//VOCdevkit//VOC2012//ImageSets//Segmentation//trainval.txt'
+        self.pre_x_path = '/home//jim//Data//VOCdevkit//VOC2012//JPEGImages'
+        self.pre_y_path = '/home//jim//Data//VOCdevkit//VOC2012//SegmentationClass'
         self.crop_size = [512,512]
         self.rgb_mean = nd.array([0.485, 0.456, 0.406])
         self.rgb_std = nd.array([0.229, 0.224, 0.225])
