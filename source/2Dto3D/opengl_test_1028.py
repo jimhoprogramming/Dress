@@ -18,6 +18,15 @@ View = None
 Model = None
 Project = None
 
+
+def drawFunc():
+    #清除之前画面
+    glClear(GL_COLOR_BUFFER_BIT)
+    glRotatef(0.1, 5, 5, 0)   #(角度,x,y,z)
+    glutWireTeapot(0.5)
+    #刷新显示
+    glFlush()
+
 def load_obj():
     global vertices
     #vertices = []
@@ -52,13 +61,7 @@ def load_obj():
 ##                        [ 4, 1, 0 ], 
 ##                        [ 2,-1, 0 ], 
 ##                        [ 4, 1, 0 ],
-##                        [ 2, 1, 0 ],],'f')
-
-    vertices = np.array(vertices) 
-    print(vertices.max(),vertices.min())
-    vertices = vertices / abs(vertices.max())
-    print(vertices.max(),vertices.min())
-    print(vertices.shape)
+##                        [ 2, 1, 0 ],],'f')    
     return vertices,normals,textcoords,faces
 
 # 提取由区域分割得到的人的点阵列表数据
@@ -66,7 +69,6 @@ def set_vertices():
     url = 'd://Dress//Data//vertex_output.npy'
     global vertices
     vertices = np.load(url)
-    vertices = vertices / 30.0
     
 
 # 初始化
@@ -75,21 +77,17 @@ def init():
     global vertices
     global my_shader
     global View, Model, Project
+    print(vertices)
     # 设定颜色
     glClearColor(0.0, 0.0, 0.0, 0.0)
     glColor4f(1.0, 1.0, 0.0, 0.0)
     # 准备顶点
     load_obj()
     #set_vertices()
-    #print(vertices)
     ## 准备着色器
-    #View = glm.translate(glm.mat4(), glm.vec3(-0.5, -1.2, 0.0))
-    View = glm.translate(glm.mat4(), glm.vec3(0.0, 0.0, 0.0))
-    #Model = glm.scale(glm.mat4(), glm.vec3(0.08, 0.08, 0.08))
-    Model = glm.scale(glm.mat4(), glm.vec3(1.0, 1.0, 1.0))
-    Project = glm.ortho(-300.0, 300.0, -15.0, 15.0)
-    #Project = glm.lookAt(glm.vec3(0.0, 0.0, 0.9), glm.vec3(0.0, 0.0, 0.0), glm.vec3(0.0, 1.0, 0.0))
-    print(np.dot(np.concatenate([vertices, np.ones((vertices.shape[0],1))],1),Project))
+    View = glm.translate(glm.mat4(), glm.vec3(-0.5, -1.2, 0.0))
+    Model = glm.scale(glm.mat4(), glm.vec3(0.08, 0.08, 0.08))
+    Project = glm.mat4()
     # 建立着色器的源代码
     # 编译着色器得到着色器对像
     VERTEX_SHADER = shaders.compileShader(
@@ -97,15 +95,15 @@ def init():
         uniform mat4 View, Model, Project;
         in vec3 Vertex3;
         void main() {
-            gl_PointSize = 1;
+            gl_PointSize = 0.5;
             //gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
-            gl_Position = Project * gl_Vertex;
+            gl_Position = View * Model * Project * gl_Vertex;
             //gl_Position = ftransform(); 
         }""", GL_VERTEX_SHADER)
     FRAGMENT_SHADER = shaders.compileShader(
         """#version 120 
         void main() { 
-            gl_FragColor = vec4( 1, 0, 0, 1 ); 
+            gl_FragColor = vec4( 0, 1, 0, 1 ); 
         }""", GL_FRAGMENT_SHADER)
     # 建立着色器程序
     
@@ -114,7 +112,7 @@ def init():
     
     # 建立缓存
     # 关联变量
-    print(vertices[0:4,:])
+    print(vertices[0:4])
     my_vbo = vbo.VBO(np.asarray(vertices))
     print(my_vbo.size)
 
@@ -140,10 +138,10 @@ def display():
         #glVertexPointer(3, GL_FLOAT, 0, my_vbo)
         glVertexPointerf(my_vbo)
         # 实行绘制命令
-        #glDrawArrays(GL_TRIANGLES, 0, vertices.shape[0])
-        #glDrawArrays(GL_LINE_LOOP, 0, 3)
-        #glDrawArrays(GL_LINES, 0, vertices.shape[0])
-        glDrawArrays(GL_POINTS, 0, vertices.shape[0])
+        #glDrawArrays(GL_TRIANGLES, 0, 9)
+        #glDrawArrays(GL_LINE_LOOP, 0, 9)
+        #glDrawArrays(GL_LINES, 0, 9)
+        glDrawArrays(GL_POINTS, 0, 129)
     finally:
         glDisableClientState(GL_VERTEX_ARRAY)
         my_vbo.unbind()
@@ -175,6 +173,8 @@ def mouse_event(buttom, state, x, y):
     if buttom == GLUT_RIGHT_BUTTON:
         glutDestroyWindow(window_id)
     
+    
+
 def main():
     print(OpenGL.__version__)
     # 第三方库窗口工作
@@ -193,7 +193,48 @@ def main():
 
     # 程序退出
     return True
+    
+
+def draw_points():
+    #清楚之前画面
+    glClear(GL_COLOR_BUFFER_BIT)
+    #glRotatef(-0.1, 5, 5, 0)   #(角度,x,y,z)
+    #glPointSize(5.0)
+    #glColor3f(1.0, 1.0, 0.0)
+    glLoadIdentity ()
+    glMatrixMode(GL_MODELVIEW)
+    #gluLookAt(-10.0, -10.0, 10.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0)
+    #glViewport(-10, -10, 800, 600)
+    gluOrtho2D(-20.0, 10.0, -10.0, 10.0) 
+    glBegin(GL_TRIANGLES)
+    for v in vertices:
+        glVertex3f(v[0],v[1],v[2])
+    glEnd()
+    #glRotatef(0.1, 5, 5, 0)
+    #刷新显示
+    glFlush()    
         
+def main_old(url):
+
+    #使用glut初始化OpenGL
+    print(OpenGL.__version__)
+    glutInit()
+    #显示模式:GLUT_SINGLE无缓冲直接显示|GLUT_RGBA采用RGB(A非alpha)
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGBA)
+    #窗口位置及大小-生成
+    glutInitWindowPosition(0,0)
+    glutInitWindowSize(800,600)
+    glutCreateWindow(b"first")
+    # load obj
+    vertices,normals,textcoords,faces = load_obj(url) 
+    #调用函数绘制图像
+    #print(vertices)
+    glutDisplayFunc(draw_points)
+    #glutDisplayFunc(drawFunc)
+    #glutIdleFunc(draw_points)
+    #主循环
+    glutMainLoop()
+    
 if __name__== '__main__':
     
     main()
