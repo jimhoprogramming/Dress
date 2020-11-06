@@ -42,7 +42,7 @@ class Train(object):
 
     def model_compile(self):
         # 编译模型
-        self.loss = gloss.L2Loss()
+        self.loss = gloss.SoftmaxCrossEntropyLoss(axis = 1, sparse_label = True)
         self.trainer = Trainer(self.model.collect_params(), optimizer = 'adam')
         self.trainer.set_learning_rate = self.learning_rate
 
@@ -63,9 +63,9 @@ class Train(object):
     def acc(self, output, label):
         # output: (batch, num_output) float32 ndarray
         # label: (batch, label) float32 ndarray
-        return (output == label.flatten()).mean().asscalar()    
+        return (nd.argmax(output, axis = 1) == label).mean().asscalar()    
 
-    def fit(self, dataset_train, dataset_val, epochs = 100, verbose = 1, validation_split = 0.3, batch_size = 64):
+    def fit(self, dataset_train, dataset_val, epochs = 100, verbose = 1, validation_split = 0.3, batch_size = 8):
         # 初始化及编译模型准备训练
         self.init_model()
         self.model_compile()
@@ -77,9 +77,9 @@ class Train(object):
             train_loss, train_acc, val_acc = 0., 0., 0.
             tic = time.time()
             train_step = 0
-            for data, label in train_data:
+            for data, label_image, label in train_data:
                 data = nd.transpose(data,axes = (0,3,1,2))
-                label = nd.transpose(label,axes = (0,3,1,2))
+                label_image = nd.transpose(label_image,axes = (0,3,1,2))
                 # show img as y
                 #show_data(data, label)
                 # forward + backward
@@ -99,7 +99,7 @@ class Train(object):
                     print('label max:{},min:{}'.format(label.max().asscalar(), label.min().asscalar()))
                     '''    
                     #
-                    loss = self.loss(output, label.flatten())
+                    loss = self.loss(output, label)
                     #print('loss shape : {}'.format(loss.shape))
                     print('loss value: {}'.format(loss))
                     #
@@ -128,7 +128,7 @@ class Train(object):
                                train_acc_mean = train_acc_mean, \
                                train_data = data, \
                                train_image = train_image, \
-                               train_label = label, \
+                               train_label = label_image, \
                                val_step = 0, \
                                val_acc_mean = None, \
                                val_data = None, \
@@ -140,9 +140,9 @@ class Train(object):
 
             # calculate validation accuracy
             val_step = 0
-            for val_data, val_label in valid_data:
+            for val_data, val_label_image, val_label in valid_data:
                 val_data = nd.transpose(val_data,axes = (0,3,1,2))
-                val_label = nd.transpose(val_label,axes = (0,3,1,2))
+                val_label_image = nd.transpose(val_label_image, axes = (0,3,1,2))
                 with autograd.predict_mode():
                     print(u'训练模式：{}'.format(autograd.is_training()))
                     val_output,val_image = self.model(val_data)   
@@ -164,7 +164,7 @@ class Train(object):
                                val_acc_mean = val_acc_mean, \
                                val_data = val_data, \
                                val_image = val_image, \
-                               val_label = val_label \
+                               val_label = val_label_image \
                                )
                 
             # display rel
@@ -265,6 +265,6 @@ class Train(object):
             self.sw.add_histogram(tag = name, values = grads[i], global_step = train_step, bins = 20)
 
 if __name__=='__main__':
-    t,v = create_dataloader(64)
+    t,v = create_dataloader(8)
     Trainer_Obj = Train()
     Trainer_Obj.fit(t,v)

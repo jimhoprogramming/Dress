@@ -213,7 +213,7 @@ def return_feature():
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
-    net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
     return net
 
 
@@ -272,7 +272,7 @@ if __name__== '__main__':
 ##    net.hybridize()
 
     # 显示中间结果
-    for x,y in t:
+    for x, label_image, label in t:
         # 输入并转换通道
         print('input x shape = {}'.format(x.shape))
         y_hat, image = net(nd.transpose(x,axes = (0,3,1,2)))
@@ -282,7 +282,7 @@ if __name__== '__main__':
         image = nd.transpose(image, axes = (0,2,3,1))
         #y_hat = nd.transpose(y_hat, axes = (0,2,3,1))
         # 显示热量图
-        d2l.show_images_ndarray([x,y,image],3,8,2)
+        d2l.show_images_ndarray([x, label_image, image], 3, 8, 2)
         break
     net.hybridize()
 

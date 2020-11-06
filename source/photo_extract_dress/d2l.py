@@ -807,6 +807,11 @@ def use_svg_display():
     """Use svg format to display plot in jupyter"""
     display.set_matplotlib_formats('svg')
 
+def create_colormap2label():
+    colormap2label = nd.zeros(256 ** 3)
+    for i, colormap in enumerate(VOC_COLORMAP):
+        colormap2label[colormap[0] * 256 + colormap[1] * 256 + colormap[2]] = i
+    return colormap2label
 
 def voc_label_indices(colormap, colormap2label):
     """Assign label indices for Pascal VOC2012 Dataset."""

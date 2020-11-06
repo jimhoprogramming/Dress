@@ -20,7 +20,8 @@ class P2012Voc_DataSet(gluon.data.Dataset):
             self.url = url_file_val
         with open(self.url, "r") as file:
             self.image_list = file.readlines()
-        self.image_list = [im.strip() for im in self.image_list]        
+        self.image_list = [im.strip() for im in self.image_list]
+        self.colormap2label = d2l.create_colormap2label()
 
     def __len__(self):
         return len(self.image_list)
@@ -32,9 +33,12 @@ class P2012Voc_DataSet(gluon.data.Dataset):
         else:
             x, y = self.__filter(idx,pass_filter = False)
             x, y = self.__voc_rand_crop(feature = x, label = y, height = self.crop_size[0], width = self.crop_size[1])
+        #
+        label_ind = nd.array(d2l.voc_label_indices(y.astype('float32'), self.colormap2label))
         print('out x = {}'.format(x.shape))
         print('out y = {}'.format(y.shape))
-        return x,y
+        print('out label_ind = {}'.format(label_ind.shape))
+        return x,y,label_ind
 
     def __voc_rand_crop(self, feature, label, height, width):
         feature, rect = image.random_crop(feature, (width, height))
@@ -64,7 +68,9 @@ class P2012Voc_DataSet(gluon.data.Dataset):
                     break
             else:
                 idx = random.randint(0,len(self.image_list))
+        
         return self.__normalize_image(x), y.astype('float32')
+    
     def __normalize_image(self, img):
         img = (img.astype('float32') / 255.0 - self.rgb_mean) / self.rgb_std
         img = img.clip(0.0,1.0)
@@ -81,13 +87,19 @@ def create_dataloader(batch_size = 8):
     
 if __name__ == '__main__':
     t,v = create_dataloader()
-    for x,y in t:
-        print(x.shape)
-        print(x.dtype)
+    for x,y,label in t:
+        print('x input shape = {}'.format(x.shape))
+        print('x intput type = {}'.format(x.dtype))
         print('input min:{},max:{}'.format(x.min().asscalar(), x.max().asscalar()))
-        print(y.shape)
-        print(y.dtype)
-        print('label min:{},max:{}'.format(y.min().asscalar(), y.max().asscalar()))
+        #
+        print('label_image shape = {}'.format(y.shape))
+        print('label_image type = {}'.format(y.dtype))
+        print('label_image min:{},max:{}'.format(y.min().asscalar(), y.max().asscalar()))
+        #
+        print('label shape = {}'.format(label.shape))
+        print('label type = {}'.format(label.dtype))
+        print('label min:{},max:{}'.format(label.min().asscalar(), label.max().asscalar()))
+        #
         d2l.show_images_ndarray([x,y],2,8,2)
         
         
