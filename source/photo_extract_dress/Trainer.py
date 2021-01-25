@@ -1,12 +1,14 @@
 import os, numpy as np, time
 from mxnet.gluon import nn, loss as gloss, Trainer
-from mxnet import autograd
+from mxnet import autograd, lr_scheduler
 from mxnet import initializer as init
 from mxnet import nd
 from mxboard import *
 #
 from DenseAtrousConvolutionNet import model 
 from GetData import create_dataloader
+import d2l
+
 
 class Train(object):
     def __init__(self):
@@ -14,10 +16,11 @@ class Train(object):
         self.model = model()
         self.loss = None
         self.trainer = None
-        self.learning_rate = 0.01
+        self.learning_rate = 0.003
         self.weight_url = '/home//jim//Dress//Data//weights.params'
         self.logdir_url = '/home//jim//Dress//log'
         self.sw = None
+        
 
     def set_weight_name(self, name):
         self.weight_url = self.weight_url.replace('fill_it', name)
@@ -33,8 +36,13 @@ class Train(object):
             self.model.load_parameters(self.weight_url, allow_missing = True, ignore_extra = True)
         else:
             #self.model.collect_params("conv*|dense*").initialize(init.Xavier())
-            self.model.initialize(init=init.Xavier())
+            #self.model.initialize(init=init.Xavier())
+            self.model.initialize(init=init.MSRAPrelu())
+        #y_hat, image = self.model(nd.random.uniform(shape=(8,3,512,512))) 
         #self.model.hybridize()
+        # 加入模型框架图
+        #y_hat, image = self.model(nd.random.uniform(shape=(8,3,512,512)))
+        #self.sw.add_graph(self.model)
 
         # 显示模型
         print(u'model construct display:')
@@ -42,9 +50,11 @@ class Train(object):
 
     def model_compile(self):
         # 编译模型
-        self.loss = gloss.SoftmaxCrossEntropyLoss(axis = 1, sparse_label = True)
-        self.trainer = Trainer(self.model.collect_params(), optimizer = 'adam')
-        self.trainer.set_learning_rate = self.learning_rate
+        self.loss = gloss.SoftmaxCrossEntropyLoss(axis = 1)
+        lr_sch = lr_scheduler.FactorScheduler(step=100, factor=0.9)
+        optimizer_params={'learning_rate': self.learning_rate , 'lr_scheduler': lr_sch}
+        self.trainer = Trainer(self.model.collect_params(), optimizer = 'adam', optimizer_params = optimizer_params)
+        #self.trainer.set_learning_rate = self.learning_rate
 
     def predict(self, x):
         x = nd.expand_dims(x, axis = 0)
@@ -63,15 +73,17 @@ class Train(object):
     def acc(self, output, label):
         # output: (batch, num_output) float32 ndarray
         # label: (batch, label) float32 ndarray
-        return (nd.argmax(output, axis = 1) == label).mean().asscalar()    
+        return (nd.argmax_channel(output) == label).mean().asscalar()    
 
-    def fit(self, dataset_train, dataset_val, epochs = 100, verbose = 1, validation_split = 0.3, batch_size = 8):
+    def fit(self, dataset_train, dataset_val, epochs = 1000):
         # 初始化及编译模型准备训练
+        self.setup_debug()
         self.init_model()
         self.model_compile()
-        self.setup_debug()
+        
         # 进入训练
         train_data, valid_data = dataset_train, dataset_val
+        batch_size = 2
         global_step = 0
         for epoch in nd.arange(epochs):
             train_loss, train_acc, val_acc = 0., 0., 0.
@@ -91,17 +103,17 @@ class Train(object):
                     print('input max:{},min:{}'.format(data.max(),data.min()))
                     '''
                     #
-                    output,train_image = self.model(data)
+                    output, mid_image = self.model(data)
                     '''
                     print(u'输出y_hat数据形态{}, type = {}'.format(output.shape, output.dtype))
                     print(u'输出label数据形态{}, type = {}'.format(label.shape, label.dtype))
                     print('output max:{},min:{}'.format(output.max().asscalar(), output.min().asscalar()))
                     print('label max:{},min:{}'.format(label.max().asscalar(), label.min().asscalar()))
-                    '''    
+                    '''   
                     #
                     loss = self.loss(output, label)
                     #print('loss shape : {}'.format(loss.shape))
-                    print('loss value: {}'.format(loss))
+                    #print('loss value: {}'.format(loss))
                     #
                     loss.backward()
                 # update parameters
@@ -127,17 +139,18 @@ class Train(object):
                                train_loss_mean = train_loss_mean, \
                                train_acc_mean = train_acc_mean, \
                                train_data = data, \
-                               train_image = train_image, \
+                               train_mid_image = mid_image[:,0:3,:,:], \
+                               train_output = None, \
                                train_label = label_image, \
                                val_step = 0, \
                                val_acc_mean = None, \
                                val_data = None, \
-                               val_image = None, \
+                               val_mid_image = None, \
+                               val_output = None, \
                                val_label = None \
                                )
+                #break
                 
-
-
             # calculate validation accuracy
             val_step = 0
             for val_data, val_label_image, val_label in valid_data:
@@ -145,7 +158,7 @@ class Train(object):
                 val_label_image = nd.transpose(val_label_image, axes = (0,3,1,2))
                 with autograd.predict_mode():
                     print(u'训练模式：{}'.format(autograd.is_training()))
-                    val_output,val_image = self.model(val_data)   
+                    val_output, val_mid_image = self.model(val_data)   
                 #
                 val_acc += self.acc(val_output, val_label)
                 #print(u'val set check:')
@@ -158,14 +171,17 @@ class Train(object):
                                train_loss_mean = train_loss_mean, \
                                train_acc_mean = train_acc_mean, \
                                train_data = data, \
-                               train_image = train_image, \
-                               train_label = label, \
+                               train_mid_image = mid_image[:,0:3,:,:], \
+                               train_output = None, \
+                               train_label = label_image, \
                                val_step = val_step, \
                                val_acc_mean = val_acc_mean, \
                                val_data = val_data, \
-                               val_image = val_image, \
+                               val_mid_image = val_mid_image[:,0:3,:,:], \
+                               val_output = None, \
                                val_label = val_label_image \
                                )
+                #break
                 
             # display rel
             print("Epoch {}: loss {}, train acc {}, test acc {}, using {} sec" .format(
@@ -176,7 +192,7 @@ class Train(object):
             self.model.save_parameters(self.weight_url)
             #
             global_step += 1
-            
+    
     def check_bug(self, label, output):
         # 真阴、真阳、假阴、假阳统计
         np_label = label.asnumpy()
@@ -208,6 +224,15 @@ class Train(object):
         img = nd.transpose(img, axes = (0,3,1,2))
         return img
 
+    def y_hat_to_image(self, y_hat):
+        y_hat = nd.argmax_channel(y_hat)
+        print('y_hat shape = {}'.format(y_hat.shape))
+        rel = nd.ones((y_hat.shape[0],3,y_hat.shape[1],y_hat.shape[2]))
+        for b in nd.arange(rel.shape[0]):
+            for x in nd.arange(rel.shape[2]):
+                for y in nd.arange(rel.shape[3]):
+                    rel[b,:,x,y] = d2l.VOC_COLORMAP[int(y_hat[b,x,y])]
+        return rel
         
     def call_back(self,
                   global_step = 0,
@@ -215,39 +240,46 @@ class Train(object):
                   train_loss_mean = None,
                   train_acc_mean = None,
                   train_data = None,
-                  train_image = None,
+                  train_mid_image = None,
+                  train_output = None,
                   train_label = None,
                   val_step = 0,
                   val_acc_mean = None,
                   val_data = None,
-                  val_image = None,
+                  val_mid_image = None,
+                  val_output = None,
                   val_label = None,
                   ):
         # 加入模型框架图
         #if global_step == 0:
+            #self.model.hybridize()
             #self.sw.add_graph(self.model)
         
         # 加入某层输出图像变化
         if train_data is not None:
-            train_image = self.image_255_to_01(train_image)
+            #train_output = self.image_255_to_01(train_output)
+            train_mid_image = self.image_255_to_01(train_mid_image)
             train_label = self.image_255_to_01(train_label)
             #
             self.sw.add_image('train_input_image', train_data, train_step)
-            self.sw.add_image('train_output_image', train_image, train_step)
-            self.sw.add_image('train_output_label', train_label, train_step)
+            self.sw.add_image('train_mid_image', train_mid_image, train_step)
+            #self.sw.add_image('train_output', train_output, train_step)
+            self.sw.add_image('train_label', train_label, train_step)
         if val_data is not None:
             val_data = self.image_255_to_01(val_data)
-            val_image = self.image_255_to_01(val_image)
+            val_mid_image = self.image_255_to_01(val_mid_image)
+            #val_output = self.image_255_to_01(val_output)
             val_label = self.image_255_to_01(val_label)
             #
             self.sw.add_image('val_input_image', val_data, val_step)
-            self.sw.add_image('val_output_image', val_image, val_step)
-            self.sw.add_image('val_output_label', val_label, val_step)
+            self.sw.add_image('val_mid_image', val_mid_image, val_step)
+            #self.sw.add_image('val_output', val_output, val_step)
+            self.sw.add_image('val_label', val_label, val_step)
             
 
         # 加入学习次数-loss、acc变化曲线图
         if train_loss_mean is not None:
-            self.sw.add_scalar(tag = 'L2Loss_and_acc', \
+            self.sw.add_scalar(tag = 'Loss_and_acc', \
                                value = {'train_loss': train_loss_mean, 'train_acc': train_acc_mean}, \
                                global_step = train_step)
         if val_acc_mean is not None:
@@ -265,6 +297,6 @@ class Train(object):
             self.sw.add_histogram(tag = name, values = grads[i], global_step = train_step, bins = 20)
 
 if __name__=='__main__':
-    t,v = create_dataloader(8)
+    t,v = create_dataloader(2)
     Trainer_Obj = Train()
     Trainer_Obj.fit(t,v)

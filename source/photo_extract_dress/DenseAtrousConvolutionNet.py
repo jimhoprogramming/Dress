@@ -1,8 +1,9 @@
 # DeneAtrousConvolutionNet
 
 from mxnet.gluon import Block, nn
-from mxnet import nd, init 
+from mxnet import nd, init
 import numpy as np
+#npx.set_np()
 from GetData import create_dataloader
 import d2l
 
@@ -14,7 +15,7 @@ eps = 1.1e-5
 concat_axis = 1 # channel 
 nb_filter = 3 # 64
 compression = 1.0
-
+colormap2label = d2l.create_colormap2label()
 
 def conv_block(c,k,s,p,r):
     blk = nn.HybridSequential()
@@ -36,7 +37,7 @@ class dense_block(nn.HybridBlock):
             print('dense_block output shize ->{}'.format(np.floor((512+2*p-r*(k-1)-1)/s)+1))
             self.net.add(conv_block(c,k,s,p,r))   
 
-    def forward(self, x):
+    def hybrid_forward(self, F, x):
         current = x
         y = None
         for layer in self.net:
@@ -107,12 +108,12 @@ class dense_global_atrous_spatial_pyramid_pooling(nn.HybridBlock):
             self.net.add(conv_block(c,k,s,p,r))
             if i == 4:
                 self.net.add(nn.Conv2D(channels = c, kernel_size = 3, strides = 1, padding = 6, dilation=6, layout = LAYOUT))
-    def forward(self, x):
+    def hybrid_forward(self, F, x):
         current = x
         y = None
         for blk in self.net:
             if y is not None:
-                current = nd.concat(current, y, dim=1)
+                current = nd.concat(current, y, dim = 1)
             y = blk(current)
         return y
     
@@ -148,7 +149,7 @@ class Encoder_Net(nn.HybridBlock):
         self.conv2d_2 = nn.Conv2D(channels = 128, kernel_size = 3, strides = 1, padding = 1)
         self.conv2d_3 = nn.Conv2D(channels = 256, kernel_size = 3, strides = 2, padding = 0)
         #self.conv2d_4 = nn.Conv2D(channels = 3, kernel_size = 1, strides = 1) # for show
-    def forward(self, x):
+    def hybrid_forward(self, F, x):
         feature_b = self.dense_atrous_conv_net(x)   # 64x128x128
         # load 1
         feature_h = self.conv2d_1(feature_b)        # 64x128x128=image
@@ -205,15 +206,23 @@ def return_feature():
     net.add(nn.Conv2DTranspose(channels = 32, kernel_size = 3, strides = 1, padding = 1))
     net.add(nn.Conv2DTranspose(channels = 32, kernel_size = 3, strides = 1, padding = 1))
     #
-    net.add(nn.Conv2DTranspose(channels = 16, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
-    net.add(nn.Conv2DTranspose(channels = 16, kernel_size = 3, strides = 1, padding = 1))
-    net.add(nn.Conv2DTranspose(channels = 16, kernel_size = 3, strides = 1, padding = 1))
-    net.add(nn.Conv2DTranspose(channels = 16, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 21, kernel_size = 3, strides = 2, padding = 1, output_padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 21, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 21, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 21, kernel_size = 3, strides = 1, padding = 1))
     #
+    '''
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
     net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 8, kernel_size = 3, strides = 1, padding = 1))
+    #
     net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    net.add(nn.Conv2DTranspose(channels = 3, kernel_size = 3, strides = 1, padding = 1))
+    #
+    '''
     return net
 
 
@@ -224,7 +233,7 @@ class Decoder_Net(nn.HybridBlock):
         # setup main net    
         self.primery_decoder = primery_decoder()
         self.return_feature = return_feature()
-    def forward(self, x1, x2):
+    def hybrid_forward(self, F, x1, x2):
         x2 = self.primery_decoder(x2)
         middle_feature = nd.concat(x1, x2, dim = 1)
         y_hat = self.return_feature(middle_feature)
@@ -236,13 +245,10 @@ class model(nn.HybridBlock):
         self.Encoder_Net = Encoder_Net()
         self.Decoder_Net = Decoder_Net()
         #self.flatten = nn.Flatten()
-        self.conv2d_last = nn.Conv2D(channels = 20, kernel_size = 1, strides =1, padding = 0, layout = LAYOUT)
-    def forward(self, x):
+    def hybrid_forward(self, F, x):
         x_y_hat, x_image = self.Encoder_Net(x)
-        image = self.Decoder_Net(x_image, x_y_hat)
-        y_hat = self.conv2d_last(image)
-        y_hat = nd.SoftmaxActivation(y_hat, mode = 'channel')
-        return y_hat, image
+        y_hat = self.Decoder_Net(x_image, x_y_hat)
+        return y_hat, x_image
 
 if __name__== '__main__':
     ## 生成输入数据
@@ -275,14 +281,13 @@ if __name__== '__main__':
     for x, label_image, label in t:
         # 输入并转换通道
         print('input x shape = {}'.format(x.shape))
-        y_hat, image = net(nd.transpose(x,axes = (0,3,1,2)))
+        y_hat, x_image = net(nd.transpose(x,axes = (0,3,1,2)))
+        print('y_hat max = {}, min = {}'.format(nd.max(y_hat),nd.min(y_hat)))
         print('output y_hat shape = {}'.format(y_hat.shape))
-        print('output image shape = {}'.format(image.shape))
         # 通道转换
-        image = nd.transpose(image, axes = (0,2,3,1))
-        #y_hat = nd.transpose(y_hat, axes = (0,2,3,1))
+        x_image = nd.transpose(x_image, axes = (0,2,3,1))
         # 显示热量图
-        d2l.show_images_ndarray([x, label_image, image], 3, 8, 2)
+        d2l.show_images_ndarray([x, label_image, x_image[:,:,:,0:3]], 3, 8, 2)
         break
     net.hybridize()
 
