@@ -9,8 +9,8 @@ import numpy as np
 import glm
 #
 
-##url = 'd://Dress//Data//base.obj'
-url = 'd://Dress//DataNormalize//check_base_obj.obj'
+url = '..//..//Data//base.obj'
+##url = 'd://Dress//DataNormalize//check_base_obj.obj'
 vertices = []
 my_vbo = None
 windws_id = None

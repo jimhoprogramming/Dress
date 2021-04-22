@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset='UTF-8'/>
+        <title>FileList and File </title>
+        <script type="text/javascript" language="JavaScript">
+function showFiles(){
+var file,
+                len = document.getElementById('file').files.length;//返回FileList文件列表对象
+for (var i=0; i < len; i++) {
+                  file = document.getElementById('file').files[i];
+                  alert(file.name);
+                };
+
+            }
+</script>
+    </head>
+    <body>
+        <input type="file" id='file' multiple="multiple" width="80px"/>
+        <input type="button" id="bt1" value="click" onclick="showFiles();"/>
+    </body>
+</html>

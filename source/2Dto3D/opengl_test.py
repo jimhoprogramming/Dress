@@ -9,7 +9,7 @@ import numpy as np
 import glm
 #
 
-url = 'd://Dress//DataResize//base.obj'
+url = '..//..//Data//base.obj'
 ##url = 'c://Users//FRONTIER//3D Objects//check_base_obj.obj'
 ##url = 'd://Dress//DataNormalize//check_base_obj.obj'
 ##url = 'd://Dress//DataNormalize//base.obj'
@@ -45,7 +45,7 @@ def load_obj():
     textcoords = []
     faces = []
     swapyz = False
-    
+    '''
     with open(file = url, mode = 'r') as f:
         for line in f:
             if line.startswith('#'): continue
@@ -75,7 +75,7 @@ def load_obj():
                         [ 2,-1, 0 ], 
                         [ 4, 1, 0 ],
                         [ 2, 1, 0 ],],'float32')
-    '''
+    
     vertices = np.array(vertices,'float32')
     print(u'对像基本信息：')
     print(type(vertices))
@@ -136,8 +136,8 @@ def init():
     #print(np.dot(np.concatenate([vertices, np.ones((vertices.shape[0],1))],1),Project))
     # 建立着色器的源代码
     # 编译着色器得到着色器对像
-    VERTEX_SHADER = shaders.compileShader(
-        """#version 140 core
+    VERTEX_SHADER = shaders.compileShader(source = 
+        """#version 120 core
         in vec3 Vertex3;
         uniform mat4 View, Model, Project;
         void main() {
@@ -146,12 +146,13 @@ def init():
             gl_Position = View * Model * Project * vec4(Vertex3, 1.0);
             //gl_Position = View * Model * Project * gl_Vertex;
             //gl_Position = ftransform(); 
-        }""", GL_VERTEX_SHADER)
-    FRAGMENT_SHADER = shaders.compileShader(
+        }""", shaderType = GL_VERTEX_SHADER)
+    
+    FRAGMENT_SHADER = shaders.compileShader( source =
         """#version 140 core
         void main() {
             gl_FragColor = vec4( 0, 1, 0, 1 ); 
-        }""", GL_FRAGMENT_SHADER)
+        }""", shaderType = GL_FRAGMENT_SHADER)
     # 建立着色器程序
     
     # 关联着色器程序与着色器对像

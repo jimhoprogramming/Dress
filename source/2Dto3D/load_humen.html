@@ -1,0 +1,30 @@
+<script type="text/javascript" language="javascript"> 
+//读文件 
+function readFile_IE(filename){ 
+	var fso = new ActiveXObject("Scripting.FileSystemObject"); 
+	var f = fso.OpenTextFile(filename,1); 
+	var s = ""; 
+	while (!f.AtEndOfStream) 
+		s += f.ReadLine()+"/n"; 
+	f.Close(); 
+	return s; 
+        }
+function readFile_Chorme(filename){
+        var file = document.getElementById("filePicker").files[0];
+        var date = new Date(file.lastModified);
+        println("You selected the file " + file.name + " which was modified on " + date.toDateString() + ".");
+        }
+</script>
+
+//主程序
+<html> 
+	<input type="text" id="in" name="in" />
+	/*
+	<input type="button" value="Write!" onclick="writeFile('c:/12.txt',document.getElementById('in').value);"/>
+        */
+	<br><br> 
+	<input type="button" value="Read!" onclick="document.getElementById('show').value=readFile('d:/github_project/Dress/Data/base.obj');"/>
+	<br>
+	<textarea id="show" name="show" cols="50" rows="8" > 
+	</textarea> 
+</html>
